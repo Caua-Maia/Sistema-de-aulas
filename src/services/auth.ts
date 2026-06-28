@@ -1,12 +1,12 @@
 /**
  * Serviço de autenticação — localStorage MVP.
  *
- * Para migrar para Supabase:
- *   - getUsers / saveUsers  →  supabase.from("users").select() / insert()
- *   - loginOrRegister       →  supabase.auth.signInWithPassword() / signUp()
- *   - getSession            →  supabase.auth.getSession()
- *   - logout                →  supabase.auth.signOut()
- *   Manter as mesmas assinaturas de retorno para que contexto/hooks não mudem.
+ * Para migrar para Supabase, substitua cada função mantendo o mesmo contrato de retorno:
+ *   login()           →  supabase.auth.signInWithPassword()
+ *   register()        →  supabase.auth.signUp() + supabase.from("users").insert()
+ *   logout()          →  supabase.auth.signOut()
+ *   getCurrentUser()  →  supabase.auth.getUser() + supabase.from("users").select()
+ *   getSession()      →  supabase.auth.getSession()
  */
 
 import { User, AuthSession } from "@/types/user";
@@ -14,7 +14,13 @@ import { User, AuthSession } from "@/types/user";
 export const USERS_STORAGE_KEY = "ford-enter-users";
 export const SESSION_STORAGE_KEY = "ford-enter-auth";
 
-// ─── Storage helpers ────────────────────────────────────────────────────────
+// ─── Resultado comum ──────────────────────────────────────────────────────────
+
+export type AuthResult =
+  | { ok: true; user: User }
+  | { ok: false; error: string };
+
+// ─── Storage helpers (privados) ───────────────────────────────────────────────
 
 function getUsers(): User[] {
   if (typeof window === "undefined") return [];
@@ -36,7 +42,14 @@ function generateId(): string {
   return `user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-// ─── User helpers ────────────────────────────────────────────────────────────
+function saveSession(userId: string): void {
+  localStorage.setItem(
+    SESSION_STORAGE_KEY,
+    JSON.stringify({ userId } satisfies AuthSession)
+  );
+}
+
+// ─── User helpers (exportados para uso interno) ───────────────────────────────
 
 export function findUserByEmail(email: string): User | undefined {
   return getUsers().find(
@@ -44,25 +57,11 @@ export function findUserByEmail(email: string): User | undefined {
   );
 }
 
-export function createUser(email: string, password: string): User {
-  const users = getUsers();
-  const user: User = {
-    id: generateId(),
-    name: email.split("@")[0],
-    email: email.toLowerCase().trim(),
-    passwordHash: password,
-    createdAt: new Date().toISOString(),
-  };
-  saveUsers([...users, user]);
-  return user;
-}
-
 export function updateUser(updated: User): void {
-  const users = getUsers().map((u) => (u.id === updated.id ? updated : u));
-  saveUsers(users);
+  saveUsers(getUsers().map((u) => (u.id === updated.id ? updated : u)));
 }
 
-// ─── Session helpers ─────────────────────────────────────────────────────────
+// ─── Session helpers ──────────────────────────────────────────────────────────
 
 export function getSession(): AuthSession | null {
   if (typeof window === "undefined") return null;
@@ -75,13 +74,6 @@ export function getSession(): AuthSession | null {
   }
 }
 
-function saveSession(userId: string): void {
-  localStorage.setItem(
-    SESSION_STORAGE_KEY,
-    JSON.stringify({ userId } satisfies AuthSession)
-  );
-}
-
 export function clearSession(): void {
   localStorage.removeItem(SESSION_STORAGE_KEY);
 }
@@ -92,48 +84,79 @@ export function getCurrentUser(): User | null {
   return getUsers().find((u) => u.id === session.userId) ?? null;
 }
 
-// ─── Auth actions ─────────────────────────────────────────────────────────────
-
-export type LoginResult =
-  | { ok: true; user: User; isNew: boolean }
-  | { ok: false; error: string };
+// ─── Ações de autenticação ────────────────────────────────────────────────────
 
 /**
- * Login MVP:
- *   - E-mail já existe → valida senha.
- *   - E-mail novo      → cria conta automaticamente (modo MVP).
+ * Faz login com e-mail e senha.
+ * Nunca cria conta — retorna erro se o e-mail não existir.
  *
- * Substitua esta função por Supabase Auth sem alterar o contrato de retorno.
+ * Supabase: substituir por supabase.auth.signInWithPassword({ email, password })
  */
-export function loginOrRegister(
-  email: string,
-  password: string
-): LoginResult {
+export function login(email: string, password: string): AuthResult {
   const trimmed = email.toLowerCase().trim();
 
   if (!trimmed || !password) {
     return { ok: false, error: "Preencha todos os campos." };
   }
 
-  if (password.length < 4) {
-    return { ok: false, error: "A senha deve ter pelo menos 4 caracteres." };
+  const user = findUserByEmail(trimmed);
+
+  if (!user) {
+    return {
+      ok: false,
+      error: "Conta não encontrada. Crie uma conta para continuar.",
+    };
   }
 
-  const existing = findUserByEmail(trimmed);
-
-  if (existing) {
-    if (existing.passwordHash !== password) {
-      return { ok: false, error: "Senha incorreta." };
-    }
-    saveSession(existing.id);
-    return { ok: true, user: existing, isNew: false };
+  if (user.passwordHash !== password) {
+    return { ok: false, error: "Senha incorreta." };
   }
 
-  const newUser = createUser(trimmed, password);
-  saveSession(newUser.id);
-  return { ok: true, user: newUser, isNew: true };
+  saveSession(user.id);
+  return { ok: true, user };
 }
 
+/**
+ * Cria uma nova conta e inicia sessão automaticamente.
+ * Retorna erro se o e-mail já estiver cadastrado.
+ *
+ * Supabase: substituir por supabase.auth.signUp() + insert na tabela users.
+ */
+export function register(
+  name: string,
+  email: string,
+  password: string
+): AuthResult {
+  const trimmedEmail = email.toLowerCase().trim();
+  const trimmedName = name.trim();
+
+  if (!trimmedName || !trimmedEmail || !password) {
+    return { ok: false, error: "Preencha todos os campos." };
+  }
+
+  if (findUserByEmail(trimmedEmail)) {
+    return { ok: false, error: "Este e-mail já está cadastrado." };
+  }
+
+  const users = getUsers();
+  const newUser: User = {
+    id: generateId(),
+    name: trimmedName,
+    email: trimmedEmail,
+    passwordHash: password,
+    createdAt: new Date().toISOString(),
+  };
+
+  saveUsers([...users, newUser]);
+  saveSession(newUser.id);
+  return { ok: true, user: newUser };
+}
+
+/**
+ * Encerra a sessão atual.
+ *
+ * Supabase: substituir por supabase.auth.signOut()
+ */
 export function logout(): void {
   clearSession();
 }

@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { GraduationCap, Sparkles, UserPlus } from "lucide-react";
+import { GraduationCap, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -18,12 +18,39 @@ import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 
-export default function LoginPage() {
-  const { login, isLoading, isAuthenticated } = useAuth();
+// ─── Validação client-side ─────────────────────────────────────────────────────
+
+function validate(
+  name: string,
+  email: string,
+  password: string,
+  confirmPassword: string
+): string | null {
+  if (!name.trim()) return "O nome é obrigatório.";
+
+  if (!email.trim()) return "O e-mail é obrigatório.";
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.trim())) return "Informe um e-mail válido.";
+
+  if (password.length < 6)
+    return "A senha deve ter pelo menos 6 caracteres.";
+
+  if (password !== confirmPassword) return "As senhas não coincidem.";
+
+  return null;
+}
+
+// ─── Página ───────────────────────────────────────────────────────────────────
+
+export default function CadastroPage() {
+  const { register, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
 
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -44,19 +71,25 @@ export default function LoginPage() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    setSubmitting(true);
 
-    const result = login(email.trim(), password);
+    const validationError = validate(name, email, password, confirmPassword);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    setSubmitting(true);
+    const result = register(name.trim(), email.trim(), password);
 
     if (!result.ok) {
-      setError(result.error ?? "Erro ao entrar. Tente novamente.");
+      setError(result.error ?? "Erro ao criar conta. Tente novamente.");
       setSubmitting(false);
     }
     // Em caso de sucesso, o AuthContext já redireciona para /dashboard
   }
 
   return (
-    <div className="min-h-screen mesh-bg flex flex-col items-center justify-center px-4">
+    <div className="min-h-screen mesh-bg flex flex-col items-center justify-center px-4 py-8">
       <div className="absolute top-4 right-4">
         <ThemeToggle variant="header" />
       </div>
@@ -73,18 +106,31 @@ export default function LoginPage() {
 
       <Card className="w-full max-w-md shadow-card-hover animate-slide-up">
         <CardHeader className="text-center">
-          <Badge variant="secondary" className="mx-auto mb-3">
-            <Sparkles className="h-3 w-3" />
-            Área do aluno
+          <Badge variant="default" className="mx-auto mb-3">
+            <Rocket className="h-3 w-3" />
+            Novo por aqui?
           </Badge>
-          <CardTitle className="text-2xl">Entrar na plataforma</CardTitle>
+          <CardTitle className="text-2xl">Criar conta</CardTitle>
           <CardDescription className="text-base">
-            Bem-vindo de volta! Entre com seu e-mail e senha.
+            Preencha os dados abaixo para começar sua trilha de aprendizado.
           </CardDescription>
         </CardHeader>
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Seu nome"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoComplete="name"
+                required
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
               <Input
@@ -103,27 +149,31 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••"
+                placeholder="mínimo 6 caracteres"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
+                autoComplete="new-password"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmar senha</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="repita a senha"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
                 required
               />
             </div>
 
             {error && (
-              <div className="text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/50 rounded-xl px-4 py-3">
-                <p>{error}</p>
-                {error.includes("Conta não encontrada") && (
-                  <Link
-                    href="/cadastro"
-                    className="mt-1.5 inline-flex items-center gap-1.5 font-semibold text-brand-primary hover:underline"
-                  >
-                    <UserPlus className="h-3.5 w-3.5" />
-                    Criar conta agora
-                  </Link>
-                )}
-              </div>
+              <p className="text-sm font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-100 dark:border-red-900/50 rounded-xl px-4 py-3">
+                {error}
+              </p>
             )}
 
             <Button
@@ -132,17 +182,17 @@ export default function LoginPage() {
               size="lg"
               disabled={submitting}
             >
-              {submitting ? "Entrando…" : "Entrar"}
+              {submitting ? "Criando conta…" : "Criar conta"}
             </Button>
           </form>
 
           <p className="mt-6 text-center text-sm text-brand-text-muted">
-            Ainda não tem conta?{" "}
+            Já tem conta?{" "}
             <Link
-              href="/cadastro"
+              href="/login"
               className="font-semibold text-brand-primary hover:underline"
             >
-              Criar conta
+              Entrar
             </Link>
           </p>
         </CardContent>

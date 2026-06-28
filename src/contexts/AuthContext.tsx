@@ -11,24 +11,23 @@ import {
 import { useRouter } from "next/navigation";
 import { User } from "@/types/user";
 import {
+  AuthResult,
   getCurrentUser,
-  loginOrRegister,
+  login as serviceLogin,
+  register as serviceRegister,
   logout as serviceLogout,
 } from "@/services/auth";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface LoginResponse {
-  ok: boolean;
-  isNew?: boolean;
-  error?: string;
-}
+// ─── Tipos ────────────────────────────────────────────────────────────────────
 
 interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => LoginResponse;
+  /** Autentica usuário existente. Redireciona para /dashboard em caso de sucesso. */
+  login: (email: string, password: string) => AuthResult;
+  /** Cria conta e inicia sessão. Redireciona para /dashboard em caso de sucesso. */
+  register: (name: string, email: string, password: string) => AuthResult;
   logout: () => void;
 }
 
@@ -49,14 +48,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(
-    (email: string, password: string): LoginResponse => {
-      const result = loginOrRegister(email, password);
+    (email: string, password: string): AuthResult => {
+      const result = serviceLogin(email, password);
       if (result.ok) {
         setUser(result.user);
         router.push("/dashboard");
-        return { ok: true, isNew: result.isNew };
       }
-      return { ok: false, error: result.error };
+      return result;
+    },
+    [router]
+  );
+
+  const register = useCallback(
+    (name: string, email: string, password: string): AuthResult => {
+      const result = serviceRegister(name, email, password);
+      if (result.ok) {
+        setUser(result.user);
+        router.push("/dashboard");
+      }
+      return result;
     },
     [router]
   );
@@ -68,8 +78,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, isLoading, isAuthenticated: !!user, login, logout }),
-    [user, isLoading, login, logout]
+    () => ({ user, isLoading, isAuthenticated: !!user, login, register, logout }),
+    [user, isLoading, login, register, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

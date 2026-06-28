@@ -54,6 +54,9 @@ export default function LandingPage() {
             <Button asChild variant="outline" size="sm">
               <Link href="/login">Entrar</Link>
             </Button>
+            <Button asChild size="sm">
+              <Link href="/cadastro">Criar conta</Link>
+            </Button>
           </div>
         </div>
       </header>
@@ -74,9 +77,9 @@ export default function LandingPage() {
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button asChild size="lg">
-              <Link href="/login">
+              <Link href="/cadastro">
                 <Zap className="h-5 w-5" />
-                Entrar na Plataforma
+                Começar agora
               </Link>
             </Button>
             <Button asChild variant="outline" size="lg">
