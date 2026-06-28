@@ -16,7 +16,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <div className="min-h-screen mesh-bg flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-brand-primary border-t-brand-secondary" />
-          <p className="text-sm font-medium text-slate-500">Carregando...</p>
+          <p className="text-sm font-medium text-brand-text-muted">Carregando...</p>
         </div>
       </div>
     );

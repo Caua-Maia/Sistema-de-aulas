@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -10,13 +11,17 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          primary: "#2563EB",
+          primary: "#7C3AED",
+          "primary-hover": "#6D28D9",
           secondary: "#06B6D4",
-          accent: "#F97316",
           sidebar: "#0F172A",
-          bg: "#F8FAFC",
-          text: "#1E293B",
+          bg: "var(--background)",
+          text: "var(--foreground)",
+          "text-muted": "var(--foreground-muted)",
           success: "#22C55E",
+          card: "var(--card)",
+          "card-secondary": "var(--card-secondary)",
+          border: "var(--border)",
         },
         background: "var(--background)",
         foreground: "var(--foreground)",
@@ -27,9 +32,9 @@ const config: Config = {
       boxShadow: {
         card: "0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04)",
         "card-hover":
-          "0 4px 16px rgba(37, 99, 235, 0.12), 0 8px 24px rgba(15, 23, 42, 0.08)",
-        glow: "0 0 20px rgba(37, 99, 235, 0.25)",
-        "accent-glow": "0 0 24px rgba(249, 115, 22, 0.35)",
+          "0 4px 16px rgba(124, 58, 237, 0.12), 0 8px 24px rgba(15, 23, 42, 0.08)",
+        glow: "0 0 20px rgba(124, 58, 237, 0.25)",
+        "secondary-glow": "0 0 24px rgba(6, 182, 212, 0.3)",
       },
       animation: {
         "fade-in": "fadeIn 0.4s ease-out",

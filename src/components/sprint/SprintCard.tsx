@@ -47,7 +47,7 @@ export function SprintCard({
 
   return (
     <Card className="interactive-card group overflow-hidden">
-      <div className="h-1 w-full bg-gradient-to-r from-brand-primary via-brand-secondary to-brand-accent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+      <div className="h-1 w-full bg-gradient-to-r from-brand-primary via-brand-secondary to-brand-primary opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -68,7 +68,7 @@ export function SprintCard({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-slate-600 leading-relaxed">
+        <p className="text-sm text-brand-text-muted leading-relaxed">
           {sprint.description}
         </p>
         <ProgressBar value={progress.percentage} showLabel />
@@ -76,7 +76,7 @@ export function SprintCard({
           <Button
             asChild
             variant={
-              progress.status === "nao-iniciada" ? "accent" : "outline"
+              progress.status === "nao-iniciada" ? "default" : "outline"
             }
             className="w-full"
           >

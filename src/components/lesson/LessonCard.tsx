@@ -23,7 +23,8 @@ export function LessonCard({ lesson, sprintId, isCompleted }: LessonCardProps) {
     <Card
       className={cn(
         "interactive-card group",
-        isCompleted && "border-brand-success/30 bg-gradient-to-r from-green-50/50 to-white"
+        isCompleted &&
+          "border-brand-success/30 bg-gradient-to-r from-brand-success/5 to-brand-card"
       )}
     >
       <CardHeader className="pb-3">
@@ -33,7 +34,7 @@ export function LessonCard({ lesson, sprintId, isCompleted }: LessonCardProps) {
               "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold transition-transform duration-300 group-hover:scale-110",
               isCompleted
                 ? "bg-brand-success text-white shadow-[0_0_10px_rgba(34,197,94,0.3)]"
-                : "bg-slate-100 text-slate-600 group-hover:bg-brand-primary/10 group-hover:text-brand-primary"
+                : "bg-brand-card-secondary text-brand-text-muted group-hover:bg-brand-primary/10 group-hover:text-brand-primary"
             )}
           >
             {isCompleted ? (
@@ -56,7 +57,7 @@ export function LessonCard({ lesson, sprintId, isCompleted }: LessonCardProps) {
             </CardDescription>
           </div>
           {!isCompleted && (
-            <Circle className="h-5 w-5 shrink-0 text-slate-300 group-hover:text-brand-secondary transition-colors" />
+            <Circle className="h-5 w-5 shrink-0 text-brand-border group-hover:text-brand-secondary transition-colors" />
           )}
         </div>
       </CardHeader>

@@ -38,7 +38,7 @@ export default function ProgressoPage() {
           <h1 className="text-2xl md:text-4xl font-extrabold text-brand-text">
             Seu Progresso
           </h1>
-          <p className="mt-2 text-slate-600 text-lg">
+          <p className="mt-2 text-brand-text-muted text-lg">
             Acompanhe sua evolução. Cada aula concluída é XP na conta!
           </p>
         </div>
@@ -46,7 +46,7 @@ export default function ProgressoPage() {
         <div className="grid gap-4 md:grid-cols-3">
           <Card className="stat-card text-center">
             <CardHeader className="p-0 pb-2">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-brand-text-muted">
                 Total de aulas
               </CardTitle>
             </CardHeader>
@@ -57,9 +57,9 @@ export default function ProgressoPage() {
             </CardContent>
           </Card>
 
-          <Card className="stat-card text-center border-brand-success/20 bg-gradient-to-b from-green-50/50 to-white">
+          <Card className="stat-card text-center border-brand-success/20 bg-gradient-to-b from-brand-success/5 to-brand-card">
             <CardHeader className="p-0 pb-2">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-brand-text-muted">
                 Aulas concluídas
               </CardTitle>
             </CardHeader>
@@ -70,9 +70,9 @@ export default function ProgressoPage() {
             </CardContent>
           </Card>
 
-          <Card className="stat-card text-center border-brand-primary/20 bg-gradient-to-b from-blue-50/50 to-white">
+          <Card className="stat-card text-center border-brand-primary/20 bg-gradient-to-b from-brand-primary/5 to-brand-card">
             <CardHeader className="p-0 pb-2">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-brand-text-muted">
                 Percentual geral
               </CardTitle>
             </CardHeader>
@@ -85,10 +85,10 @@ export default function ProgressoPage() {
         </div>
 
         <Card className="overflow-hidden">
-          <div className="h-1 w-full bg-gradient-to-r from-brand-primary via-brand-secondary to-brand-accent" />
+          <div className="h-1 w-full bg-gradient-to-r from-brand-primary via-brand-secondary to-brand-primary" />
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-brand-accent" />
+              <Trophy className="h-5 w-5 text-brand-primary" />
               Progresso geral
             </CardTitle>
           </CardHeader>
@@ -112,7 +112,7 @@ export default function ProgressoPage() {
                         <p className="font-bold text-brand-text">
                           Sprint {sprint.number}: {sprint.title}
                         </p>
-                        <p className="text-sm text-slate-500 font-medium mt-0.5">
+                        <p className="text-sm text-brand-text-muted font-medium mt-0.5">
                           {progress.completedLessons}/{progress.totalLessons}{" "}
                           aulas concluídas
                         </p>

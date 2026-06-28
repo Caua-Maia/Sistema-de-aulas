@@ -46,7 +46,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl md:text-4xl font-extrabold text-brand-text">
             Olá, aluno! 👋
           </h1>
-          <p className="mt-2 text-slate-600 text-lg">
+          <p className="mt-2 text-brand-text-muted text-lg">
             Continue sua jornada. Cada aula te deixa mais perto do objetivo.
           </p>
         </div>
@@ -54,7 +54,7 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="stat-card group">
             <CardHeader className="p-0 pb-3">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-brand-text-muted">
                 Aulas concluídas
               </CardTitle>
             </CardHeader>
@@ -66,11 +66,11 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-4xl font-extrabold text-brand-text tabular-nums">
                     {completedCount}
-                    <span className="text-xl font-normal text-slate-400">
+                    <span className="text-xl font-normal text-brand-text-muted">
                       /{totalLessons}
                     </span>
                   </p>
-                  <p className="text-sm text-slate-500 font-medium">
+                  <p className="text-sm text-brand-text-muted font-medium">
                     aulas finalizadas
                   </p>
                 </div>
@@ -80,7 +80,7 @@ export default function DashboardPage() {
 
           <Card className="stat-card">
             <CardHeader className="p-0 pb-3">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-brand-text-muted">
                 Progresso geral
               </CardTitle>
             </CardHeader>
@@ -91,23 +91,23 @@ export default function DashboardPage() {
         </div>
 
         {nextIncomplete && (
-          <Card className="overflow-hidden border-brand-accent/20 bg-gradient-to-r from-orange-50/80 via-white to-cyan-50/50 shadow-accent-glow">
+          <Card className="overflow-hidden border-brand-primary/20 bg-gradient-to-r from-brand-primary/5 via-brand-card to-brand-secondary/5 shadow-glow">
             <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-6">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-accent text-white shadow-accent-glow">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-primary text-white shadow-glow">
                   <Target className="h-6 w-6" />
                 </div>
                 <div>
                   <p className="font-bold text-brand-text text-lg">
                     Continue estudando
                   </p>
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm text-brand-text-muted">
                     Sprint {nextIncomplete.sprint.number}:{" "}
                     {nextIncomplete.lesson.title}
                   </p>
                 </div>
               </div>
-              <Button asChild variant="accent">
+              <Button asChild>
                 <Link
                   href={`/sprints/${nextIncomplete.sprint.id}/aulas/${nextIncomplete.lesson.id}`}
                 >

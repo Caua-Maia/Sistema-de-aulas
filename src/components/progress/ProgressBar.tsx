@@ -21,7 +21,7 @@ export function ProgressBar({
     <div className={cn("w-full", className)}>
       {showLabel && (
         <div className="mb-2 flex justify-between text-sm">
-          <span className="font-medium text-slate-500">Progresso</span>
+          <span className="font-medium text-brand-text-muted">Progresso</span>
           <span
             className={cn(
               "font-bold tabular-nums",
@@ -34,7 +34,7 @@ export function ProgressBar({
       )}
       <div
         className={cn(
-          "w-full overflow-hidden rounded-full bg-slate-200/80",
+          "w-full overflow-hidden rounded-full bg-[var(--progress-track)]",
           heightClass
         )}
         role="progressbar"

@@ -75,10 +75,10 @@ export default function LessonPage({ params }: LessonPageProps) {
           <h1 className="mt-3 text-2xl md:text-4xl font-extrabold text-brand-text">
             {lesson.title}
           </h1>
-          <p className="mt-2 text-slate-600 text-lg">{lesson.description}</p>
+          <p className="mt-2 text-brand-text-muted text-lg">{lesson.description}</p>
         </div>
 
-        <Card className="border-slate-200/80">
+        <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               📖 Conteúdo da aula
@@ -108,7 +108,7 @@ export default function LessonPage({ params }: LessonPageProps) {
 
         {/* TODO: comments section */}
 
-        <div className="flex flex-col sm:flex-row justify-between gap-3 pt-6 border-t border-slate-200/80">
+        <div className="flex flex-col sm:flex-row justify-between gap-3 pt-6 border-t border-brand-border">
           {prevLesson ? (
             <Button asChild variant="outline">
               <Link href={`/sprints/${sprint.id}/aulas/${prevLesson.id}`}>
@@ -120,7 +120,7 @@ export default function LessonPage({ params }: LessonPageProps) {
             <div />
           )}
           {nextLesson ? (
-            <Button asChild variant="accent">
+            <Button asChild>
               <Link href={`/sprints/${sprint.id}/aulas/${nextLesson.id}`}>
                 Próxima aula
                 <ArrowRight className="h-4 w-4" />

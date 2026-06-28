@@ -31,7 +31,7 @@ export default function SprintsPage() {
           <h1 className="text-2xl md:text-4xl font-extrabold text-brand-text">
             Sprints
           </h1>
-          <p className="mt-2 text-slate-600 text-lg">
+          <p className="mt-2 text-brand-text-muted text-lg">
             Explore todas as sprints da trilha. Cada uma tem videoaulas e
             desafios práticos.
           </p>

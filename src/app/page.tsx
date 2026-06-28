@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const features = [
   {
@@ -24,23 +25,23 @@ const features = [
     title: "Desafios Práticos",
     description:
       "Cada aula traz um desafio para você praticar e fixar o conteúdo na hora.",
-    accent: "from-brand-accent/10 to-brand-accent/5",
-    iconColor: "text-brand-accent",
+    accent: "from-brand-secondary/10 to-brand-secondary/5",
+    iconColor: "text-brand-secondary",
   },
   {
     icon: TrendingUp,
     title: "Acompanhe seu Progresso",
     description:
       "Veja quantas aulas você já concluiu e mantenha a motivação para continuar.",
-    accent: "from-brand-secondary/10 to-brand-secondary/5",
-    iconColor: "text-brand-secondary",
+    accent: "from-brand-success/10 to-brand-success/5",
+    iconColor: "text-brand-success",
   },
 ];
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen mesh-bg">
-      <header className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-lg">
+      <header className="sticky top-0 z-50 border-b border-brand-border bg-brand-card/80 backdrop-blur-lg">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 md:px-8">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-primary to-brand-secondary shadow-glow">
@@ -48,9 +49,12 @@ export default function LandingPage() {
             </div>
             <span className="font-bold text-brand-text">Ford Enter</span>
           </div>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/login">Entrar</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle variant="header" />
+            <Button asChild variant="outline" size="sm">
+              <Link href="/login">Entrar</Link>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -64,12 +68,12 @@ export default function LandingPage() {
             Ford Enter —{" "}
             <span className="gradient-text">Sua Trilha de Aprendizado</span>
           </h1>
-          <p className="mt-6 text-lg md:text-xl text-slate-600 max-w-2xl mx-auto text-balance leading-relaxed">
+          <p className="mt-6 text-lg md:text-xl text-brand-text-muted max-w-2xl mx-auto text-balance leading-relaxed">
             Videoaulas rápidas, desafios práticos e progresso gamificado.
             Aprenda programação web do jeito que a galera de tech aprende.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button asChild variant="accent" size="lg">
+            <Button asChild size="lg">
               <Link href="/login">
                 <Zap className="h-5 w-5" />
                 Entrar na Plataforma
@@ -107,7 +111,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="border-t border-slate-200/60 bg-white/60 backdrop-blur py-8 text-center text-sm text-slate-500">
+      <footer className="border-t border-brand-border bg-brand-card/60 backdrop-blur py-8 text-center text-sm text-brand-text-muted">
         Ford Enter — Trilha de Apoio · Projeto educacional
       </footer>
     </div>

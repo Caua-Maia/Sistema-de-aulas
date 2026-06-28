@@ -43,14 +43,14 @@ export default function SprintDetailPage({ params }: SprintDetailPageProps) {
           <h1 className="text-2xl md:text-4xl font-extrabold text-brand-text">
             {sprint.title}
           </h1>
-          <p className="mt-3 text-slate-600 text-lg leading-relaxed">
+          <p className="mt-3 text-brand-text-muted text-lg leading-relaxed">
             {sprint.description}
           </p>
         </div>
 
-        <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-card">
+        <div className="rounded-2xl border border-brand-border bg-brand-card p-6 shadow-card">
           <ProgressBar value={progress.percentage} showLabel size="lg" />
-          <p className="mt-2 text-sm font-medium text-slate-500">
+          <p className="mt-2 text-sm font-medium text-brand-text-muted">
             {progress.completedLessons} de {progress.totalLessons} aulas
             concluídas
           </p>

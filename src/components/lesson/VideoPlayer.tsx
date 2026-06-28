@@ -10,10 +10,10 @@ interface VideoPlayerProps {
 export function VideoPlayer({ title }: VideoPlayerProps) {
   return (
     <div className="group relative aspect-video w-full overflow-hidden rounded-2xl bg-brand-sidebar shadow-card-hover">
-      <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/80 via-brand-secondary/60 to-brand-accent/40" />
+      <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/80 via-brand-secondary/60 to-brand-primary/40" />
       <div className="absolute inset-0 opacity-30">
         <div className="absolute top-1/4 left-1/4 h-32 w-32 rounded-full bg-brand-secondary/40 blur-3xl animate-pulse-soft" />
-        <div className="absolute bottom-1/4 right-1/4 h-40 w-40 rounded-full bg-brand-accent/30 blur-3xl animate-pulse-soft" />
+        <div className="absolute bottom-1/4 right-1/4 h-40 w-40 rounded-full bg-brand-primary/30 blur-3xl animate-pulse-soft" />
       </div>
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-white">
         <button
