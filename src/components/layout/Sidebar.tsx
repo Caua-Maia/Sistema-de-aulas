@@ -8,10 +8,12 @@ import {
   LayoutDashboard,
   LogOut,
   Sparkles,
+  Star,
   TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useProgress } from "@/hooks/useProgress";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const navItems = [
@@ -22,11 +24,13 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+  const { xp, level } = useProgress();
 
   return (
     <aside className="sidebar-glow hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 md:left-0 bg-brand-sidebar text-white">
-      <div className="flex items-center gap-3 px-6 py-6 border-b border-white/8">
+      {/* Logo */}
+      <div className="flex items-center gap-3 px-6 py-5 border-b border-white/8">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-primary to-brand-secondary shadow-glow">
           <GraduationCap className="h-5 w-5 text-white" />
         </div>
@@ -41,7 +45,31 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-6 space-y-1">
+      {/* User info */}
+      {user && (
+        <div className="px-4 py-4 border-b border-white/8">
+          <div className="flex items-center gap-3 px-2">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-primary/20 text-brand-secondary font-bold text-sm uppercase select-none">
+              {user.name.charAt(0)}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white truncate capitalize">
+                {user.name}
+              </p>
+              <p className="text-xs text-white/50 truncate">{user.email}</p>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-2 px-2">
+            <Star className="h-3.5 w-3.5 text-brand-primary shrink-0" />
+            <span className="text-xs text-white/60">
+              Nível {level} · {xp} XP
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-5 space-y-1">
         {navItems.map(({ href, label, icon: Icon }) => {
           const isActive =
             pathname === href || pathname.startsWith(href + "/");
@@ -68,6 +96,7 @@ export function Sidebar() {
         })}
       </nav>
 
+      {/* Footer */}
       <div className="px-3 py-4 border-t border-white/8 space-y-1">
         <ThemeToggle variant="sidebar" />
         <button

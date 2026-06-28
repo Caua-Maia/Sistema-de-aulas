@@ -1,17 +1,5 @@
-export const MOCK_CREDENTIALS = {
-  email: "aluno@fordenter.com",
-  password: "123456",
-} as const;
-
-export const AUTH_STORAGE_KEY = "ford-enter-auth";
-
-export interface AuthUser {
-  email: string;
-  name: string;
-}
-
-export function isValidCredentials(email: string, password: string): boolean {
-  return (
-    email === MOCK_CREDENTIALS.email && password === MOCK_CREDENTIALS.password
-  );
-}
+/**
+ * @deprecated Auth logic moved to src/services/auth.ts and src/contexts/AuthContext.tsx
+ * This file kept only to avoid broken imports during migration.
+ */
+export { SESSION_STORAGE_KEY as AUTH_STORAGE_KEY } from "@/services/auth";

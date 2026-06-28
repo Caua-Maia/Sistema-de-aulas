@@ -1,11 +1,12 @@
 "use client";
 
-import { BarChart3, Trophy } from "lucide-react";
+import { BarChart3, Star, Trophy } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ProgressBar } from "@/components/progress/ProgressBar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { sprints } from "@/data/mock";
+import { getLevelProgress, XP_PER_LESSON } from "@/lib/progress";
 import { useProgress } from "@/hooks/useProgress";
 
 export default function ProgressoPage() {
@@ -14,8 +15,12 @@ export default function ProgressoPage() {
     completedCount,
     overallPercentage,
     getSprintProgress,
+    xp,
+    level,
     isLoaded,
   } = useProgress();
+
+  const levelProgress = getLevelProgress(xp);
 
   if (!isLoaded) {
     return (
@@ -39,11 +44,11 @@ export default function ProgressoPage() {
             Seu Progresso
           </h1>
           <p className="mt-2 text-brand-text-muted text-lg">
-            Acompanhe sua evolução. Cada aula concluída é XP na conta!
+            Acompanhe sua evolução. Cada aula concluída vale {XP_PER_LESSON} XP!
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card className="stat-card text-center">
             <CardHeader className="p-0 pb-2">
               <CardTitle className="text-xs font-semibold uppercase tracking-wider text-brand-text-muted">
@@ -73,12 +78,31 @@ export default function ProgressoPage() {
           <Card className="stat-card text-center border-brand-primary/20 bg-gradient-to-b from-brand-primary/5 to-brand-card">
             <CardHeader className="p-0 pb-2">
               <CardTitle className="text-xs font-semibold uppercase tracking-wider text-brand-text-muted">
-                Percentual geral
+                XP total
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <p className="text-4xl font-extrabold text-brand-primary tabular-nums">
-                {overallPercentage}%
+                {xp}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="stat-card text-center border-brand-secondary/20 bg-gradient-to-b from-brand-secondary/5 to-brand-card">
+            <CardHeader className="p-0 pb-2">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-brand-text-muted">
+                Nível
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="flex items-center justify-center gap-2">
+                <Star className="h-6 w-6 text-brand-secondary" />
+                <p className="text-4xl font-extrabold text-brand-text tabular-nums">
+                  {level}
+                </p>
+              </div>
+              <p className="text-xs text-brand-text-muted mt-2">
+                {levelProgress.xpInLevel}/{levelProgress.xpForNextLevel} XP neste nível
               </p>
             </CardContent>
           </Card>
@@ -89,7 +113,7 @@ export default function ProgressoPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Trophy className="h-5 w-5 text-brand-primary" />
-              Progresso geral
+              Progresso geral ({overallPercentage}%)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -114,7 +138,8 @@ export default function ProgressoPage() {
                         </p>
                         <p className="text-sm text-brand-text-muted font-medium mt-0.5">
                           {progress.completedLessons}/{progress.totalLessons}{" "}
-                          aulas concluídas
+                          aulas concluídas ·{" "}
+                          {progress.completedLessons * XP_PER_LESSON} XP
                         </p>
                       </div>
                       <Badge

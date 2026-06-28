@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GraduationCap, Menu, X } from "lucide-react";
+import { GraduationCap, LogOut, Menu, Star, X } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
+import { useProgress } from "@/hooks/useProgress";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const navItems = [
@@ -16,7 +17,8 @@ const navItems = [
 
 export function Header() {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+  const { xp, level } = useProgress();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -26,7 +28,17 @@ export function Header() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-primary to-brand-secondary">
             <GraduationCap className="h-4 w-4 text-white" />
           </div>
-          <span className="font-bold text-brand-text text-sm">Ford Enter</span>
+          <div className="flex flex-col">
+            <span className="font-bold text-brand-text text-sm leading-tight">
+              Ford Enter
+            </span>
+            {user && (
+              <span className="text-[10px] text-brand-text-muted leading-tight flex items-center gap-1">
+                <Star className="h-2.5 w-2.5 text-brand-primary" />
+                Nível {level} · {xp} XP
+              </span>
+            )}
+          </div>
         </Link>
         <div className="flex items-center gap-1">
           <ThemeToggle variant="header" />
@@ -42,6 +54,22 @@ export function Header() {
 
       {menuOpen && (
         <nav className="border-t border-brand-border px-4 py-3 space-y-1 animate-slide-up">
+          {user && (
+            <div className="flex items-center gap-2.5 px-3 py-2.5 mb-2 rounded-xl bg-brand-card-secondary">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand-primary/20 text-brand-primary font-bold text-xs uppercase">
+                {user.name.charAt(0)}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-brand-text truncate capitalize">
+                  {user.name}
+                </p>
+                <p className="text-xs text-brand-text-muted truncate">
+                  {user.email}
+                </p>
+              </div>
+            </div>
+          )}
+
           {navItems.map(({ href, label }) => {
             const isActive =
               pathname === href || pathname.startsWith(href + "/");
@@ -61,13 +89,15 @@ export function Header() {
               </Link>
             );
           })}
+
           <button
             onClick={() => {
               setMenuOpen(false);
               logout();
             }}
-            className="block w-full text-left rounded-xl px-3 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-500/10 transition-colors"
+            className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-500/10 transition-colors"
           >
+            <LogOut className="h-4 w-4" />
             Sair
           </button>
         </nav>

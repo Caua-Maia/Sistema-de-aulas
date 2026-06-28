@@ -18,7 +18,8 @@ interface LessonPageProps {
 
 export default function LessonPage({ params }: LessonPageProps) {
   const data = getLessonById(params.sprintId, params.lessonId);
-  const { isLessonCompleted, markLessonComplete, isLoaded } = useProgress();
+  const { isLessonCompleted, markLessonComplete, getNavigation, isLoaded } =
+    useProgress();
 
   if (!data) {
     notFound();
@@ -26,13 +27,7 @@ export default function LessonPage({ params }: LessonPageProps) {
 
   const { sprint, lesson } = data;
   const completed = isLessonCompleted(lesson.id);
-  const sortedLessons = [...sprint.lessons].sort((a, b) => a.order - b.order);
-  const currentIndex = sortedLessons.findIndex((l) => l.id === lesson.id);
-  const prevLesson = currentIndex > 0 ? sortedLessons[currentIndex - 1] : null;
-  const nextLesson =
-    currentIndex < sortedLessons.length - 1
-      ? sortedLessons[currentIndex + 1]
-      : null;
+  const { prev: prevEntry, next: nextEntry } = getNavigation(lesson.id);
 
   if (!isLoaded) {
     return (
@@ -61,9 +56,7 @@ export default function LessonPage({ params }: LessonPageProps) {
 
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="secondary">
-              Aula {lesson.order}
-            </Badge>
+            <Badge variant="secondary">Aula {lesson.order}</Badge>
             <Badge variant="muted">Sprint {sprint.number}</Badge>
             {completed && (
               <Badge variant="success">
@@ -102,16 +95,16 @@ export default function LessonPage({ params }: LessonPageProps) {
             size="lg"
           >
             <CheckCircle2 className="h-5 w-5" />
-            {completed ? "Aula concluída ✓" : "Marcar como concluída"}
+            {completed ? "Aula concluída" : "Marcar como concluída"}
           </Button>
         </div>
 
-        {/* TODO: comments section */}
-
         <div className="flex flex-col sm:flex-row justify-between gap-3 pt-6 border-t border-brand-border">
-          {prevLesson ? (
+          {prevEntry ? (
             <Button asChild variant="outline">
-              <Link href={`/sprints/${sprint.id}/aulas/${prevLesson.id}`}>
+              <Link
+                href={`/sprints/${prevEntry.sprint.id}/aulas/${prevEntry.lesson.id}`}
+              >
                 <ArrowLeft className="h-4 w-4" />
                 Aula anterior
               </Link>
@@ -119,17 +112,19 @@ export default function LessonPage({ params }: LessonPageProps) {
           ) : (
             <div />
           )}
-          {nextLesson ? (
+          {nextEntry ? (
             <Button asChild>
-              <Link href={`/sprints/${sprint.id}/aulas/${nextLesson.id}`}>
+              <Link
+                href={`/sprints/${nextEntry.sprint.id}/aulas/${nextEntry.lesson.id}`}
+              >
                 Próxima aula
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
           ) : (
             <Button asChild variant="secondary">
-              <Link href={`/sprints/${sprint.id}`}>
-                Finalizar sprint
+              <Link href="/progresso">
+                Trilha concluída
                 <CheckCircle2 className="h-4 w-4" />
               </Link>
             </Button>

@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { GraduationCap, Sparkles } from "lucide-react";
+import { GraduationCap, Sparkles, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -17,7 +17,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
-import { MOCK_CREDENTIALS } from "@/lib/auth";
 
 export default function LoginPage() {
   const { login, isLoading, isAuthenticated } = useAuth();
@@ -25,6 +24,8 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isNew, setIsNew] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -43,9 +44,16 @@ export default function LoginPage() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    const success = login(email.trim(), password);
-    if (!success) {
-      setError("Email ou senha incorretos. Tente novamente.");
+    setIsNew(false);
+    setSubmitting(true);
+
+    const result = login(email.trim(), password);
+
+    if (!result.ok) {
+      setError(result.error ?? "Erro ao entrar. Tente novamente.");
+      setSubmitting(false);
+    } else if (result.isNew) {
+      setIsNew(true);
     }
   }
 
@@ -73,19 +81,21 @@ export default function LoginPage() {
           </Badge>
           <CardTitle className="text-2xl">Entrar na plataforma</CardTitle>
           <CardDescription className="text-base">
-            Use suas credenciais para acessar a trilha de apoio.
+            Entre com seu e-mail e senha. Se for seu primeiro acesso, sua conta
+            será criada automaticamente.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">E-mail</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
                 required
               />
             </div>
@@ -94,9 +104,10 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••"
+                placeholder="mínimo 4 caracteres"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
                 required
               />
             </div>
@@ -107,14 +118,22 @@ export default function LoginPage() {
               </p>
             )}
 
-            <Button type="submit" className="w-full" size="lg">
-              Entrar
+            {isNew && (
+              <div className="flex items-center gap-2 text-sm font-medium text-brand-success bg-brand-success/10 border border-brand-success/20 rounded-xl px-4 py-3">
+                <UserPlus className="h-4 w-4 shrink-0" />
+                Conta criada! Redirecionando…
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              disabled={submitting}
+            >
+              {submitting ? "Entrando…" : "Entrar"}
             </Button>
           </form>
-
-          <p className="mt-6 text-center text-xs text-brand-text-muted bg-brand-card-secondary rounded-xl py-3 px-4">
-            Demo: {MOCK_CREDENTIALS.email} / {MOCK_CREDENTIALS.password}
-          </p>
         </CardContent>
       </Card>
     </div>
