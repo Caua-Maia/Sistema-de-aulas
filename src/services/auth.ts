@@ -1,162 +1,169 @@
 /**
- * Serviço de autenticação — localStorage MVP.
+ * Serviço de autenticação — Supabase Auth.
  *
- * Para migrar para Supabase, substitua cada função mantendo o mesmo contrato de retorno:
- *   login()           →  supabase.auth.signInWithPassword()
- *   register()        →  supabase.auth.signUp() + supabase.from("users").insert()
- *   logout()          →  supabase.auth.signOut()
- *   getCurrentUser()  →  supabase.auth.getUser() + supabase.from("users").select()
- *   getSession()      →  supabase.auth.getSession()
+ * Todas as funções são async e retornam Promise<AuthResult>.
+ * O AuthContext consome este serviço e expõe a interface para a UI.
  */
 
-import { User, AuthSession } from "@/types/user";
+import { supabase } from "@/lib/supabase";
+import { User } from "@/types/user";
 
-export const USERS_STORAGE_KEY = "ford-enter-users";
-export const SESSION_STORAGE_KEY = "ford-enter-auth";
-
-// ─── Resultado comum ──────────────────────────────────────────────────────────
+// ─── Tipos ────────────────────────────────────────────────────────────────────
 
 export type AuthResult =
   | { ok: true; user: User }
   | { ok: false; error: string };
 
-// ─── Storage helpers (privados) ───────────────────────────────────────────────
+// ─── Mapeamento de erros do Supabase ──────────────────────────────────────────
 
-function getUsers(): User[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const stored = localStorage.getItem(USERS_STORAGE_KEY);
-    if (!stored) return [];
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
+function mapAuthError(message: string): string {
+  const m = message.toLowerCase();
+
+  if (m.includes("user already registered") || m.includes("already been registered")) {
+    return "Este e-mail já está cadastrado.";
   }
-}
-
-function saveUsers(users: User[]): void {
-  localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-}
-
-function generateId(): string {
-  return `user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function saveSession(userId: string): void {
-  localStorage.setItem(
-    SESSION_STORAGE_KEY,
-    JSON.stringify({ userId } satisfies AuthSession)
-  );
-}
-
-// ─── User helpers (exportados para uso interno) ───────────────────────────────
-
-export function findUserByEmail(email: string): User | undefined {
-  return getUsers().find(
-    (u) => u.email.toLowerCase() === email.toLowerCase().trim()
-  );
-}
-
-export function updateUser(updated: User): void {
-  saveUsers(getUsers().map((u) => (u.id === updated.id ? updated : u)));
-}
-
-// ─── Session helpers ──────────────────────────────────────────────────────────
-
-export function getSession(): AuthSession | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const stored = localStorage.getItem(SESSION_STORAGE_KEY);
-    if (!stored) return null;
-    return JSON.parse(stored) as AuthSession;
-  } catch {
-    return null;
+  if (m.includes("invalid login credentials") || m.includes("invalid email or password")) {
+    return "E-mail ou senha incorretos.";
   }
+  if (m.includes("email not confirmed")) {
+    return "Confirme seu e-mail antes de entrar.";
+  }
+  if (m.includes("password should be at least")) {
+    return "A senha deve ter pelo menos 6 caracteres.";
+  }
+  if (m.includes("unable to validate email address")) {
+    return "Informe um e-mail válido.";
+  }
+  if (m.includes("network") || m.includes("fetch")) {
+    return "Sem conexão. Verifique sua internet e tente novamente.";
+  }
+
+  return "Ocorreu um erro inesperado. Tente novamente.";
 }
 
-export function clearSession(): void {
-  localStorage.removeItem(SESSION_STORAGE_KEY);
-}
+// ─── Busca de perfil ──────────────────────────────────────────────────────────
 
-export function getCurrentUser(): User | null {
-  const session = getSession();
-  if (!session) return null;
-  return getUsers().find((u) => u.id === session.userId) ?? null;
+async function fetchProfile(userId: string): Promise<User | null> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, name, email, avatar_url, created_at")
+    .eq("id", userId)
+    .single();
+
+  if (error || !data) return null;
+  return data as User;
 }
 
 // ─── Ações de autenticação ────────────────────────────────────────────────────
 
 /**
- * Faz login com e-mail e senha.
- * Nunca cria conta — retorna erro se o e-mail não existir.
- *
- * Supabase: substituir por supabase.auth.signInWithPassword({ email, password })
- */
-export function login(email: string, password: string): AuthResult {
-  const trimmed = email.toLowerCase().trim();
-
-  if (!trimmed || !password) {
-    return { ok: false, error: "Preencha todos os campos." };
-  }
-
-  const user = findUserByEmail(trimmed);
-
-  if (!user) {
-    return {
-      ok: false,
-      error: "Conta não encontrada. Crie uma conta para continuar.",
-    };
-  }
-
-  if (user.passwordHash !== password) {
-    return { ok: false, error: "Senha incorreta." };
-  }
-
-  saveSession(user.id);
-  return { ok: true, user };
-}
-
-/**
- * Cria uma nova conta e inicia sessão automaticamente.
+ * Cria nova conta via Supabase Auth e insere o perfil na tabela profiles.
  * Retorna erro se o e-mail já estiver cadastrado.
- *
- * Supabase: substituir por supabase.auth.signUp() + insert na tabela users.
  */
-export function register(
+export async function register(
   name: string,
   email: string,
   password: string
-): AuthResult {
-  const trimmedEmail = email.toLowerCase().trim();
+): Promise<AuthResult> {
   const trimmedName = name.trim();
+  const trimmedEmail = email.toLowerCase().trim();
 
   if (!trimmedName || !trimmedEmail || !password) {
     return { ok: false, error: "Preencha todos os campos." };
   }
 
-  if (findUserByEmail(trimmedEmail)) {
-    return { ok: false, error: "Este e-mail já está cadastrado." };
+  const { data, error } = await supabase.auth.signUp({
+    email: trimmedEmail,
+    password,
+  });
+
+  if (error) {
+    return { ok: false, error: mapAuthError(error.message) };
   }
 
-  const users = getUsers();
-  const newUser: User = {
-    id: generateId(),
+  const authUser = data.user;
+  if (!authUser) {
+    return { ok: false, error: "Não foi possível criar a conta. Tente novamente." };
+  }
+
+  // Cria o perfil na tabela profiles
+  const { error: profileError } = await supabase.from("profiles").insert({
+    id: authUser.id,
     name: trimmedName,
     email: trimmedEmail,
-    passwordHash: password,
-    createdAt: new Date().toISOString(),
-  };
+  });
 
-  saveUsers([...users, newUser]);
-  saveSession(newUser.id);
-  return { ok: true, user: newUser };
+  if (profileError) {
+    // Perfil pode já existir em retenativas — ignora o conflito de unique
+    if (!profileError.code?.includes("23505")) {
+      return { ok: false, error: "Conta criada, mas erro ao salvar perfil. Tente entrar." };
+    }
+  }
+
+  const profile = await fetchProfile(authUser.id);
+  if (!profile) {
+    // Sessão criada mas perfil ainda não disponível (pode ocorrer em confirmação de e-mail)
+    const fallback: User = {
+      id: authUser.id,
+      name: trimmedName,
+      email: trimmedEmail,
+      created_at: new Date().toISOString(),
+    };
+    return { ok: true, user: fallback };
+  }
+
+  return { ok: true, user: profile };
 }
 
 /**
- * Encerra a sessão atual.
- *
- * Supabase: substituir por supabase.auth.signOut()
+ * Autentica usuário existente via Supabase Auth.
+ * Nunca cria conta — retorna erro se o e-mail não existir ou a senha estiver errada.
  */
-export function logout(): void {
-  clearSession();
+export async function login(
+  email: string,
+  password: string
+): Promise<AuthResult> {
+  const trimmedEmail = email.toLowerCase().trim();
+
+  if (!trimmedEmail || !password) {
+    return { ok: false, error: "Preencha todos os campos." };
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: trimmedEmail,
+    password,
+  });
+
+  if (error) {
+    return { ok: false, error: mapAuthError(error.message) };
+  }
+
+  const authUser = data.user;
+  if (!authUser) {
+    return { ok: false, error: "Não foi possível autenticar. Tente novamente." };
+  }
+
+  const profile = await fetchProfile(authUser.id);
+  if (!profile) {
+    return { ok: false, error: "Perfil não encontrado. Entre em contato com o suporte." };
+  }
+
+  return { ok: true, user: profile };
+}
+
+/**
+ * Encerra a sessão atual no Supabase Auth.
+ */
+export async function logout(): Promise<void> {
+  await supabase.auth.signOut();
+}
+
+/**
+ * Retorna o usuário da sessão ativa, ou null se não estiver autenticado.
+ * Usado internamente pelo AuthContext na inicialização.
+ */
+export async function getCurrentUser(): Promise<User | null> {
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  if (!authUser) return null;
+  return fetchProfile(authUser.id);
 }

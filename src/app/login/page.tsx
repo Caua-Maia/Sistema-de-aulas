@@ -41,12 +41,12 @@ export default function LoginPage() {
     );
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
     setSubmitting(true);
 
-    const result = login(email.trim(), password);
+    const result = await login(email.trim(), password);
 
     if (!result.ok) {
       setError(result.error ?? "Erro ao entrar. Tente novamente.");

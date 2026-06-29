@@ -68,7 +68,7 @@ export default function CadastroPage() {
     );
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
 
@@ -79,7 +79,7 @@ export default function CadastroPage() {
     }
 
     setSubmitting(true);
-    const result = register(name.trim(), email.trim(), password);
+    const result = await register(name.trim(), email.trim(), password);
 
     if (!result.ok) {
       setError(result.error ?? "Erro ao criar conta. Tente novamente.");

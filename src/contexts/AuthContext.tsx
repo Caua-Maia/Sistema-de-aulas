@@ -9,13 +9,14 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import { User } from "@/types/user";
 import {
   AuthResult,
   getCurrentUser,
   login as serviceLogin,
-  register as serviceRegister,
   logout as serviceLogout,
+  register as serviceRegister,
 } from "@/services/auth";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -25,9 +26,9 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   /** Autentica usuário existente. Redireciona para /dashboard em caso de sucesso. */
-  login: (email: string, password: string) => AuthResult;
+  login: (email: string, password: string) => Promise<AuthResult>;
   /** Cria conta e inicia sessão. Redireciona para /dashboard em caso de sucesso. */
-  register: (name: string, email: string, password: string) => AuthResult;
+  register: (name: string, email: string, password: string) => Promise<AuthResult>;
   logout: () => void;
 }
 
@@ -43,13 +44,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    setUser(getCurrentUser());
-    setIsLoading(false);
+    // Carrega usuário da sessão ativa ao montar
+    getCurrentUser().then((u) => {
+      setUser(u);
+      setIsLoading(false);
+    });
+
+    // Escuta mudanças de sessão em tempo real (login em outra aba, expiração, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === "SIGNED_OUT" || !session) {
+          setUser(null);
+          return;
+        }
+
+        if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") {
+          const profile = await getCurrentUser();
+          setUser(profile);
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = useCallback(
-    (email: string, password: string): AuthResult => {
-      const result = serviceLogin(email, password);
+    async (email: string, password: string): Promise<AuthResult> => {
+      const result = await serviceLogin(email, password);
       if (result.ok) {
         setUser(result.user);
         router.push("/dashboard");
@@ -60,8 +83,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const register = useCallback(
-    (name: string, email: string, password: string): AuthResult => {
-      const result = serviceRegister(name, email, password);
+    async (name: string, email: string, password: string): Promise<AuthResult> => {
+      const result = await serviceRegister(name, email, password);
       if (result.ok) {
         setUser(result.user);
         router.push("/dashboard");
@@ -71,8 +94,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [router]
   );
 
-  const logout = useCallback(() => {
-    serviceLogout();
+  const logout = useCallback(async () => {
+    await serviceLogout();
     setUser(null);
     router.push("/login");
   }, [router]);

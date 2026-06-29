@@ -1,5 +1,5 @@
 /**
- * @deprecated Auth logic moved to src/services/auth.ts and src/contexts/AuthContext.tsx
- * This file kept only to avoid broken imports during migration.
+ * @deprecated Autenticação migrada para src/services/auth.ts (Supabase Auth).
+ * Este arquivo mantido apenas para não quebrar imports legados.
  */
-export { SESSION_STORAGE_KEY as AUTH_STORAGE_KEY } from "@/services/auth";
+export {};
