@@ -4,11 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BookOpen,
+  ChevronRight,
   GraduationCap,
   LayoutDashboard,
   LogOut,
   Sparkles,
-  Star,
   TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -45,26 +45,28 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* User info */}
+      {/* Compact user access */}
       {user && (
-        <div className="px-4 py-4 border-b border-white/8">
-          <div className="flex items-center gap-3 px-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-primary/20 text-brand-secondary font-bold text-sm uppercase select-none">
-              {user.name.charAt(0)}
+        <div className="px-3 py-3 border-b border-white/8">
+          <Link
+            href="/perfil"
+            className="group flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200 hover:bg-white/5"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-primary/20 text-brand-secondary font-bold text-sm uppercase select-none">
+                {user.name.charAt(0)}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-white truncate capitalize">
+                  {user.name}
+                </p>
+                <p className="text-xs text-white/60 truncate">
+                  Nível {level} · {xp} XP
+                </p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-white truncate capitalize">
-                {user.name}
-              </p>
-              <p className="text-xs text-white/50 truncate">{user.email}</p>
-            </div>
-          </div>
-          <div className="mt-3 flex items-center gap-2 px-2">
-            <Star className="h-3.5 w-3.5 text-brand-primary shrink-0" />
-            <span className="text-xs text-white/60">
-              Nível {level} · {xp} XP
-            </span>
-          </div>
+            <ChevronRight className="h-4 w-4 text-white/40 transition-transform group-hover:translate-x-0.5 group-hover:text-white/70" />
+          </Link>
         </div>
       )}
 

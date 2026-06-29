@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Eye,
+} from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { VideoPlayer } from "@/components/lesson/VideoPlayer";
 import { PracticeChallenge } from "@/components/lesson/PracticeChallenge";
@@ -18,15 +24,26 @@ interface LessonPageProps {
 
 export default function LessonPage({ params }: LessonPageProps) {
   const data = getLessonById(params.sprintId, params.lessonId);
-  const { isLessonCompleted, markLessonComplete, getNavigation, isLoaded } =
-    useProgress();
+  const {
+    isLessonCompleted,
+    isLessonWatched,
+    isChallengeCompleted,
+    getLessonAnswer,
+    markLessonWatched,
+    markChallengeCompleted,
+    getNavigation,
+    isLoaded,
+  } = useProgress();
 
-  if (!data) {
-    notFound();
-  }
+  if (!data) notFound();
 
   const { sprint, lesson } = data;
+  const watched = isLessonWatched(lesson.id);
+  const challengeDone = isChallengeCompleted(lesson.id);
   const completed = isLessonCompleted(lesson.id);
+  const savedAnswer = getLessonAnswer(lesson.id);
+  const pendingChallenge = watched && !challengeDone;
+
   const { prev: prevEntry, next: nextEntry } = getNavigation(lesson.id);
 
   if (!isLoaded) {
@@ -42,6 +59,7 @@ export default function LessonPage({ params }: LessonPageProps) {
   return (
     <AppLayout>
       <div className="space-y-6">
+        {/* Back link */}
         <div>
           <Link
             href={`/sprints/${sprint.id}`}
@@ -54,6 +72,7 @@ export default function LessonPage({ params }: LessonPageProps) {
 
         <VideoPlayer title={lesson.title} videoUrl={lesson.videoUrl} />
 
+        {/* Title + badges */}
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="secondary">Aula {lesson.order}</Badge>
@@ -64,13 +83,28 @@ export default function LessonPage({ params }: LessonPageProps) {
                 Concluída
               </Badge>
             )}
+            {pendingChallenge && (
+              <Badge variant="secondary">
+                <AlertCircle className="h-3 w-3" />
+                Desafio pendente
+              </Badge>
+            )}
+            {watched && !completed && !pendingChallenge && (
+              <Badge variant="muted">
+                <Eye className="h-3 w-3" />
+                Assistida
+              </Badge>
+            )}
           </div>
           <h1 className="mt-3 text-2xl md:text-4xl font-extrabold text-brand-text">
             {lesson.title}
           </h1>
-          <p className="mt-2 text-brand-text-muted text-lg">{lesson.description}</p>
+          <p className="mt-2 text-brand-text-muted text-lg">
+            {lesson.description}
+          </p>
         </div>
 
+        {/* Lesson content */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -84,21 +118,31 @@ export default function LessonPage({ params }: LessonPageProps) {
           </CardContent>
         </Card>
 
-        <PracticeChallenge challenge={lesson.challenge} />
-
-        <div className="flex flex-col sm:flex-row gap-3">
+        {/* Mark as watched */}
+        {!watched && (
           <Button
-            variant={completed ? "outline" : "success"}
-            onClick={() => markLessonComplete(lesson.id)}
-            disabled={completed}
+            variant="outline"
+            onClick={() => markLessonWatched(lesson.id)}
             className="flex-1 sm:flex-none"
             size="lg"
           >
-            <CheckCircle2 className="h-5 w-5" />
-            {completed ? "Aula concluída" : "Marcar como concluída"}
+            <Eye className="h-5 w-5" />
+            Marcar como assistida
           </Button>
-        </div>
+        )}
 
+        {/* Practice challenge */}
+        <PracticeChallenge
+          challenge={lesson.challenge}
+          isCompleted={challengeDone}
+          savedAnswer={savedAnswer}
+          onSubmit={(answer) => {
+            if (!watched) markLessonWatched(lesson.id);
+            markChallengeCompleted(lesson.id, answer);
+          }}
+        />
+
+        {/* Navigation */}
         <div className="flex flex-col sm:flex-row justify-between gap-3 pt-6 border-t border-brand-border">
           {prevEntry ? (
             <Button asChild variant="outline">
@@ -123,8 +167,8 @@ export default function LessonPage({ params }: LessonPageProps) {
             </Button>
           ) : (
             <Button asChild variant="secondary">
-              <Link href="/progresso">
-                Trilha concluída
+              <Link href="/perfil">
+                Trilha concluída — ver perfil
                 <CheckCircle2 className="h-4 w-4" />
               </Link>
             </Button>

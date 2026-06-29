@@ -1,29 +1,29 @@
 /**
  * Utilitários de progresso — pure functions, sem estado React.
- * Para migrar para Supabase: substituir loadProgressFromStorage / saveProgressToStorage
- * por chamadas à API; o restante (XP, nível, navegação) permanece igual.
+ * Para migrar para Supabase: substituir load/save storage functions por chamadas à API.
+ *
+ * Formato de storage v2: Record<lessonId, { watched, challengeCompleted, challengeAnswer? }>
+ * Migração automática do formato v1 (string[]) na primeira carga.
  */
 
 import { sprints, getTotalLessonsCount } from "@/data/mock";
-import { Lesson, Sprint, SprintProgress, SprintStatus } from "@/types";
+import { Lesson, LessonProgressMap, Sprint, SprintProgress, SprintStatus } from "@/types";
 
-export const PROGRESS_STORAGE_KEY = "ford-enter-progress";
-export const XP_PER_LESSON = 50;
+export const XP_PER_WATCH = 25;
+export const XP_PER_CHALLENGE = 25;
+export const XP_PER_LESSON = XP_PER_WATCH + XP_PER_CHALLENGE; // 50 — mantém compat
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Storage keys ─────────────────────────────────────────────────────────────
 
-export interface LessonEntry {
-  sprint: Sprint;
-  lesson: Lesson;
+const PROGRESS_KEY_V1 = "ford-enter-progress";
+const PROGRESS_KEY_V2 = "ford-enter-progress-v2";
+
+export function getProgressKey(userId: string | undefined): string {
+  return userId ? `${PROGRESS_KEY_V2}-${userId}` : PROGRESS_KEY_V2;
 }
 
-// ─── Storage key per user ─────────────────────────────────────────────────────
-
-/** Chave isolada por usuário — evita cruzamento de progresso entre contas. */
-export function getProgressKey(userId: string | undefined): string {
-  return userId
-    ? `${PROGRESS_STORAGE_KEY}-${userId}`
-    : PROGRESS_STORAGE_KEY;
+function getLegacyKey(userId: string | undefined): string {
+  return userId ? `${PROGRESS_KEY_V1}-${userId}` : PROGRESS_KEY_V1;
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -32,43 +32,101 @@ function getValidLessonIds(): Set<string> {
   return new Set(sprints.flatMap((s) => s.lessons.map((l) => l.id)));
 }
 
-/** Remove duplicatas e IDs inválidos. */
-export function normalizeCompletedLessonIds(ids: string[]): string[] {
+// ─── Storage helpers ──────────────────────────────────────────────────────────
+
+export function loadProgressMapFromStorage(userId?: string): LessonProgressMap {
+  if (typeof window === "undefined") return {};
   const valid = getValidLessonIds();
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const id of ids) {
-    if (valid.has(id) && !seen.has(id)) {
-      seen.add(id);
-      result.push(id);
-    }
-  }
-  return result;
-}
 
-// ─── localStorage helpers ─────────────────────────────────────────────────────
-
-export function loadProgressFromStorage(userId?: string): string[] {
-  if (typeof window === "undefined") return [];
   try {
-    const stored = localStorage.getItem(getProgressKey(userId));
-    if (!stored) return [];
-    const parsed = JSON.parse(stored);
-    if (!Array.isArray(parsed)) return [];
-    return normalizeCompletedLessonIds(
-      parsed.filter((id): id is string => typeof id === "string")
-    );
+    const v2Key = getProgressKey(userId);
+    const stored = localStorage.getItem(v2Key);
+
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        // Filter to valid lesson IDs only
+        const result: LessonProgressMap = {};
+        for (const [id, val] of Object.entries(parsed)) {
+          if (valid.has(id) && val && typeof val === "object") {
+            const entry = val as { watched?: boolean; challengeCompleted?: boolean; challengeAnswer?: string };
+            result[id] = {
+              watched: Boolean(entry.watched),
+              challengeCompleted: Boolean(entry.challengeCompleted),
+              ...(entry.challengeAnswer ? { challengeAnswer: entry.challengeAnswer } : {}),
+            };
+          }
+        }
+        return result;
+      }
+    }
+
+    // Migrate from v1 (string[] of completed lesson IDs)
+    const legacyStored = localStorage.getItem(getLegacyKey(userId));
+    if (legacyStored) {
+      const legacyParsed = JSON.parse(legacyStored);
+      if (Array.isArray(legacyParsed)) {
+        const result: LessonProgressMap = {};
+        for (const id of legacyParsed) {
+          if (typeof id === "string" && valid.has(id)) {
+            result[id] = { watched: true, challengeCompleted: true };
+          }
+        }
+        saveProgressMapToStorage(result, userId);
+        return result;
+      }
+    }
   } catch {
-    return [];
+    // ignore parse errors
   }
+  return {};
 }
 
-export function saveProgressToStorage(
-  completedLessonIds: string[],
+export function saveProgressMapToStorage(
+  map: LessonProgressMap,
   userId?: string
 ): void {
-  const normalized = normalizeCompletedLessonIds(completedLessonIds);
-  localStorage.setItem(getProgressKey(userId), JSON.stringify(normalized));
+  localStorage.setItem(getProgressKey(userId), JSON.stringify(map));
+}
+
+// ─── Derived lesson states ────────────────────────────────────────────────────
+
+export function getLessonProgressEntry(
+  lessonId: string,
+  map: LessonProgressMap
+): { watched: boolean; challengeCompleted: boolean; completed: boolean; challengeAnswer?: string } {
+  const entry = map[lessonId];
+  const watched = entry?.watched ?? false;
+  const challengeCompleted = entry?.challengeCompleted ?? false;
+  return {
+    watched,
+    challengeCompleted,
+    completed: watched && challengeCompleted,
+    challengeAnswer: entry?.challengeAnswer,
+  };
+}
+
+export function getCompletedLessonIds(map: LessonProgressMap): string[] {
+  return Object.entries(map)
+    .filter(([, e]) => e.watched && e.challengeCompleted)
+    .map(([id]) => id);
+}
+
+export function getWatchedLessonIds(map: LessonProgressMap): string[] {
+  return Object.entries(map).filter(([, e]) => e.watched).map(([id]) => id);
+}
+
+export function getPendingChallengeIds(map: LessonProgressMap): string[] {
+  return Object.entries(map)
+    .filter(([, e]) => e.watched && !e.challengeCompleted)
+    .map(([id]) => id);
+}
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface LessonEntry {
+  sprint: Sprint;
+  lesson: Lesson;
 }
 
 // ─── Lesson navigation ────────────────────────────────────────────────────────
@@ -86,11 +144,10 @@ export function getOrderedLessonEntries(): LessonEntry[] {
 }
 
 export function getNextIncompleteLesson(
-  completedLessonIds: string[]
+  map: LessonProgressMap
 ): LessonEntry | undefined {
-  const completed = new Set(completedLessonIds);
   return getOrderedLessonEntries().find(
-    ({ lesson }) => !completed.has(lesson.id)
+    ({ lesson }) => !map[lesson.id]?.watched
   );
 }
 
@@ -111,48 +168,65 @@ export function getLessonNavigation(lessonId: string): {
 
 export function getSprintStatus(
   completed: number,
+  watched: number,
   total: number
 ): SprintStatus {
-  if (completed === 0) return "nao-iniciada";
+  if (watched === 0) return "nao-iniciada";
   if (completed >= total) return "concluida";
   return "em-andamento";
 }
 
 export function getSprintProgressFor(
   sprintId: string,
-  completedLessonIds: string[]
+  map: LessonProgressMap
 ): SprintProgress {
   const sprint = sprints.find((s) => s.id === sprintId);
   if (!sprint) {
     return {
       sprintId,
       completedLessons: 0,
+      watchedLessons: 0,
+      pendingChallenges: 0,
       totalLessons: 0,
       percentage: 0,
       status: "nao-iniciada",
     };
   }
-  const completed = new Set(completedLessonIds);
   const total = sprint.lessons.length;
-  const completedCount = sprint.lessons.filter((l) =>
-    completed.has(l.id)
-  ).length;
+  let completedCount = 0;
+  let watchedCount = 0;
+  let pendingCount = 0;
+
+  for (const lesson of sprint.lessons) {
+    const entry = map[lesson.id];
+    if (!entry) continue;
+    if (entry.watched) watchedCount++;
+    if (entry.watched && entry.challengeCompleted) completedCount++;
+    if (entry.watched && !entry.challengeCompleted) pendingCount++;
+  }
+
   return {
     sprintId,
     completedLessons: completedCount,
+    watchedLessons: watchedCount,
+    pendingChallenges: pendingCount,
     totalLessons: total,
     percentage: total > 0 ? Math.round((completedCount / total) * 100) : 0,
-    status: getSprintStatus(completedCount, total),
+    status: getSprintStatus(completedCount, watchedCount, total),
   };
 }
 
 // ─── XP & Level ──────────────────────────────────────────────────────────────
 
-export function calculateXp(completedLessonCount: number): number {
-  return completedLessonCount * XP_PER_LESSON;
+export function calculateXp(map: LessonProgressMap): number {
+  let xp = 0;
+  for (const entry of Object.values(map)) {
+    if (entry.watched) xp += XP_PER_WATCH;
+    if (entry.challengeCompleted) xp += XP_PER_CHALLENGE;
+  }
+  return xp;
 }
 
-/** Nível 1: 0–99 XP; nível 2: 100–199 XP; etc. */
 export function calculateLevel(xp: number): number {
   return Math.floor(xp / 100) + 1;
 }
@@ -169,18 +243,30 @@ export function getLevelProgress(xp: number): {
 
 // ─── Overall summary ──────────────────────────────────────────────────────────
 
-export function getOverallProgress(completedLessonIds: string[]) {
-  const normalized = normalizeCompletedLessonIds(completedLessonIds);
+export function getOverallProgress(map: LessonProgressMap) {
   const totalLessons = getTotalLessonsCount();
-  const completedCount = normalized.length;
+  const valid = getValidLessonIds();
+  let completedCount = 0;
+  let watchedCount = 0;
+  let pendingChallenges = 0;
+
+  for (const [id, entry] of Object.entries(map)) {
+    if (!valid.has(id)) continue;
+    if (entry.watched) watchedCount++;
+    if (entry.watched && entry.challengeCompleted) completedCount++;
+    if (entry.watched && !entry.challengeCompleted) pendingChallenges++;
+  }
+
   const overallPercentage =
     totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
-  const xp = calculateXp(completedCount);
+  const xp = calculateXp(map);
   const level = calculateLevel(xp);
   const allComplete = completedCount >= totalLessons && totalLessons > 0;
+
   return {
-    completedLessonIds: normalized,
     completedCount,
+    watchedCount,
+    pendingChallenges,
     totalLessons,
     overallPercentage,
     xp,
@@ -188,3 +274,6 @@ export function getOverallProgress(completedLessonIds: string[]) {
     allComplete,
   };
 }
+
+// Keep for backward compat export
+export { PROGRESS_KEY_V2 as PROGRESS_STORAGE_KEY };

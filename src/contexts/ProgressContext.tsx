@@ -10,34 +10,49 @@ import {
   useState,
 } from "react";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { sprints } from "@/data/mock";
 import {
   getLessonNavigation,
+  getLessonProgressEntry,
   getNextIncompleteLesson,
   getOverallProgress,
   getProgressKey,
   getSprintProgressFor,
-  loadProgressFromStorage,
-  PROGRESS_STORAGE_KEY,
-  saveProgressToStorage,
+  loadProgressMapFromStorage,
+  saveProgressMapToStorage,
 } from "@/lib/progress";
-import { SprintProgress } from "@/types";
+import { LessonProgressMap, Sprint, SprintProgress } from "@/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export interface PendingChallengeEntry {
+  sprintId: string;
+  sprintNumber: number;
+  lessonId: string;
+  lessonTitle: string;
+}
+
 interface ProgressContextValue {
-  completedLessons: string[];
+  progressMap: LessonProgressMap;
   isLoaded: boolean;
   completedCount: number;
+  watchedCount: number;
+  pendingChallengesCount: number;
   totalLessons: number;
   overallPercentage: number;
   xp: number;
   level: number;
   allComplete: boolean;
   isLessonCompleted: (lessonId: string) => boolean;
-  markLessonComplete: (lessonId: string) => boolean;
+  isLessonWatched: (lessonId: string) => boolean;
+  isChallengeCompleted: (lessonId: string) => boolean;
+  getLessonAnswer: (lessonId: string) => string | undefined;
+  markLessonWatched: (lessonId: string) => void;
+  markChallengeCompleted: (lessonId: string, answer?: string) => void;
   getSprintProgress: (sprintId: string) => SprintProgress;
   getNextLesson: () => ReturnType<typeof getNextIncompleteLesson>;
   getNavigation: (lessonId: string) => ReturnType<typeof getLessonNavigation>;
+  getPendingChallenges: () => PendingChallengeEntry[];
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -50,69 +65,115 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuthContext();
   const userId = user?.id;
 
-  const [completedLessons, setCompletedLessons] = useState<string[]>([]);
+  const [progressMap, setProgressMap] = useState<LessonProgressMap>({});
   const [isLoaded, setIsLoaded] = useState(false);
-
-  // Track current userId to detect user changes (e.g. logout + login as different user)
   const prevUserIdRef = useRef<string | undefined>(undefined);
 
+  // Load on user change
   useEffect(() => {
     if (prevUserIdRef.current === userId) return;
     prevUserIdRef.current = userId;
-
-    // Reset and reload for the new user (or clear on logout)
     setIsLoaded(false);
-    setCompletedLessons([]);
-
+    setProgressMap({});
     if (userId) {
-      setCompletedLessons(loadProgressFromStorage(userId));
+      setProgressMap(loadProgressMapFromStorage(userId));
     }
     setIsLoaded(true);
   }, [userId]);
 
-  // Listen for localStorage changes from other tabs
+  // Sync across tabs
   useEffect(() => {
     if (!userId) return;
-
     const key = getProgressKey(userId);
     const handleStorage = (event: StorageEvent) => {
-      if (event.key === key || event.key === PROGRESS_STORAGE_KEY) {
-        setCompletedLessons(loadProgressFromStorage(userId));
+      if (event.key === key) {
+        setProgressMap(loadProgressMapFromStorage(userId));
       }
     };
-
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, [userId]);
 
-  const isLessonCompleted = useCallback(
-    (lessonId: string) => completedLessons.includes(lessonId),
-    [completedLessons]
-  );
+  // ─── Mutations ──────────────────────────────────────────────────────────────
 
-  const markLessonComplete = useCallback(
-    (lessonId: string): boolean => {
-      let wasAdded = false;
-      setCompletedLessons((prev) => {
-        if (prev.includes(lessonId)) return prev;
-        wasAdded = true;
-        const updated = [...prev, lessonId];
-        saveProgressToStorage(updated, userId);
+  const markLessonWatched = useCallback(
+    (lessonId: string) => {
+      setProgressMap((prev) => {
+        if (prev[lessonId]?.watched) return prev;
+        const updated: LessonProgressMap = {
+          ...prev,
+          [lessonId]: {
+            challengeCompleted: prev[lessonId]?.challengeCompleted ?? false,
+            ...(prev[lessonId]?.challengeAnswer
+              ? { challengeAnswer: prev[lessonId].challengeAnswer }
+              : {}),
+            watched: true,
+          },
+        };
+        saveProgressMapToStorage(updated, userId);
         return updated;
       });
-      return wasAdded;
     },
     [userId]
   );
 
+  const markChallengeCompleted = useCallback(
+    (lessonId: string, answer?: string) => {
+      setProgressMap((prev) => {
+        if (prev[lessonId]?.challengeCompleted) return prev;
+        const updated: LessonProgressMap = {
+          ...prev,
+          [lessonId]: {
+            watched: prev[lessonId]?.watched ?? false,
+            challengeCompleted: true,
+            ...(answer
+              ? { challengeAnswer: answer }
+              : prev[lessonId]?.challengeAnswer
+                ? { challengeAnswer: prev[lessonId].challengeAnswer }
+                : {}),
+          },
+        };
+        saveProgressMapToStorage(updated, userId);
+        return updated;
+      });
+    },
+    [userId]
+  );
+
+  // ─── Queries ────────────────────────────────────────────────────────────────
+
+  const isLessonCompleted = useCallback(
+    (lessonId: string) =>
+      getLessonProgressEntry(lessonId, progressMap).completed,
+    [progressMap]
+  );
+
+  const isLessonWatched = useCallback(
+    (lessonId: string) =>
+      getLessonProgressEntry(lessonId, progressMap).watched,
+    [progressMap]
+  );
+
+  const isChallengeCompleted = useCallback(
+    (lessonId: string) =>
+      getLessonProgressEntry(lessonId, progressMap).challengeCompleted,
+    [progressMap]
+  );
+
+  const getLessonAnswer = useCallback(
+    (lessonId: string) =>
+      getLessonProgressEntry(lessonId, progressMap).challengeAnswer,
+    [progressMap]
+  );
+
   const getSprintProgress = useCallback(
-    (sprintId: string) => getSprintProgressFor(sprintId, completedLessons),
-    [completedLessons]
+    (sprintId: string) => getSprintProgressFor(sprintId, progressMap),
+    [progressMap]
   );
 
   const getNextLesson = useCallback(
-    () => getNextIncompleteLesson(completedLessons),
-    [completedLessons]
+    () => getNextIncompleteLesson(progressMap),
+    [progressMap]
   );
 
   const getNavigation = useCallback(
@@ -120,35 +181,63 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const overall = useMemo(
-    () => getOverallProgress(completedLessons),
-    [completedLessons]
-  );
+  const getPendingChallenges = useCallback((): PendingChallengeEntry[] => {
+    const result: PendingChallengeEntry[] = [];
+    for (const sprint of sprints as Sprint[]) {
+      for (const lesson of sprint.lessons) {
+        const entry = progressMap[lesson.id];
+        if (entry?.watched && !entry.challengeCompleted) {
+          result.push({
+            sprintId: sprint.id,
+            sprintNumber: sprint.number,
+            lessonId: lesson.id,
+            lessonTitle: lesson.title,
+          });
+        }
+      }
+    }
+    return result;
+  }, [progressMap]);
+
+  const overall = useMemo(() => getOverallProgress(progressMap), [progressMap]);
 
   const value = useMemo<ProgressContextValue>(
     () => ({
-      completedLessons: overall.completedLessonIds,
+      progressMap,
       isLoaded,
       completedCount: overall.completedCount,
+      watchedCount: overall.watchedCount,
+      pendingChallengesCount: overall.pendingChallenges,
       totalLessons: overall.totalLessons,
       overallPercentage: overall.overallPercentage,
       xp: overall.xp,
       level: overall.level,
       allComplete: overall.allComplete,
       isLessonCompleted,
-      markLessonComplete,
+      isLessonWatched,
+      isChallengeCompleted,
+      getLessonAnswer,
+      markLessonWatched,
+      markChallengeCompleted,
       getSprintProgress,
       getNextLesson,
       getNavigation,
+      getPendingChallenges,
     }),
     [
-      overall,
+      progressMap,
       isLoaded,
+      overall,
       isLessonCompleted,
-      markLessonComplete,
+      isLessonWatched,
+      isChallengeCompleted,
+      getLessonAnswer,
+      markLessonWatched,
+      markChallengeCompleted,
       getSprintProgress,
       getNextLesson,
       getNavigation,
+      getPendingChallenges,
     ]
   );
 
@@ -159,7 +248,7 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useProgressContext(): ProgressContextValue {
+export function useProgressContext() {
   const context = useContext(ProgressContext);
   if (!context) {
     throw new Error("useProgressContext must be used within ProgressProvider");

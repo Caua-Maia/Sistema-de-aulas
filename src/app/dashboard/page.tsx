@@ -2,45 +2,44 @@
 
 import Link from "next/link";
 import {
+  AlertCircle,
   ArrowRight,
   BookOpen,
-  CheckCircle2,
   Sparkles,
-  Star,
   Target,
   Trophy,
   Zap,
 } from "lucide-react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { SprintCard } from "@/components/sprint/SprintCard";
-import { ProgressBar } from "@/components/progress/ProgressBar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { sprints } from "@/data/mock";
-import { getLevelProgress, XP_PER_LESSON } from "@/lib/progress";
 import { useAuth } from "@/hooks/useAuth";
 import { useProgress } from "@/hooks/useProgress";
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const {
-    completedCount,
-    totalLessons,
-    overallPercentage,
     getSprintProgress,
     getNextLesson,
-    xp,
-    level,
+    getPendingChallenges,
     allComplete,
+    totalLessons,
     isLoaded,
   } = useProgress();
 
   const nextIncomplete = getNextLesson();
-  const levelProgress = getLevelProgress(xp);
+  const pendingChallenges = getPendingChallenges();
   const displayName = user?.name
     ? user.name.charAt(0).toUpperCase() + user.name.slice(1)
     : "aluno";
+
+  // Sprint em andamento (primeiro com status em-andamento, depois nao-iniciada)
+  const currentSprint = sprints.find(
+    (s) => getSprintProgress(s.id).status === "em-andamento"
+  ) ?? sprints.find((s) => getSprintProgress(s.id).status === "nao-iniciada");
 
   if (!isLoaded) {
     return (
@@ -69,77 +68,7 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="stat-card group">
-            <CardHeader className="p-0 pb-3">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-brand-text-muted">
-                Aulas concluídas
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-success/10 transition-transform group-hover:scale-105">
-                  <CheckCircle2 className="h-7 w-7 text-brand-success" />
-                </div>
-                <div>
-                  <p className="text-4xl font-extrabold text-brand-text tabular-nums">
-                    {completedCount}
-                    <span className="text-xl font-normal text-brand-text-muted">
-                      /{totalLessons}
-                    </span>
-                  </p>
-                  <p className="text-sm text-brand-text-muted font-medium">
-                    aulas finalizadas
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="stat-card group border-brand-primary/20 bg-gradient-to-b from-brand-primary/5 to-brand-card">
-            <CardHeader className="p-0 pb-3">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-brand-text-muted">
-                XP & Nível
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-primary/10 transition-transform group-hover:scale-105">
-                  <Star className="h-7 w-7 text-brand-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-4xl font-extrabold text-brand-primary tabular-nums">
-                    {xp}
-                    <span className="text-sm font-semibold text-brand-text-muted ml-1">
-                      XP
-                    </span>
-                  </p>
-                  <p className="text-sm text-brand-text-muted font-medium">
-                    Nível {level} · {levelProgress.xpInLevel}/
-                    {levelProgress.xpForNextLevel} XP
-                  </p>
-                  <p className="text-xs text-brand-text-muted mt-0.5">
-                    +{XP_PER_LESSON} XP por aula
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="stat-card">
-            <CardHeader className="p-0 pb-3">
-              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-brand-text-muted">
-                Progresso geral
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0 pt-2">
-              <ProgressBar value={overallPercentage} showLabel size="lg" />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* CTA card */}
+        {/* Continue estudando / Parabéns */}
         {allComplete ? (
           <Card className="overflow-hidden border-brand-success/30 bg-gradient-to-r from-brand-success/10 via-brand-card to-brand-secondary/5">
             <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-6">
@@ -154,13 +83,12 @@ export default function DashboardPage() {
                   </p>
                   <p className="text-sm text-brand-text-muted">
                     Você concluiu todas as {totalLessons} aulas da trilha.
-                    Continue revisando para fixar o conteúdo!
                   </p>
                 </div>
               </div>
               <Button asChild variant="secondary">
-                <Link href="/progresso">
-                  Ver progresso
+                <Link href="/perfil">
+                  Ver perfil
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
@@ -197,22 +125,66 @@ export default function DashboardPage() {
           )
         )}
 
-        {/* Sprints */}
-        <div>
-          <div className="flex items-center gap-2 mb-5">
-            <BookOpen className="h-5 w-5 text-brand-primary" />
-            <h2 className="text-xl font-bold text-brand-text">Suas Sprints</h2>
+        {/* Pendências de desafio */}
+        {pendingChallenges.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <AlertCircle className="h-5 w-5 text-brand-secondary" />
+              <h2 className="text-lg font-bold text-brand-text">
+                Desafios pendentes
+              </h2>
+              <Badge variant="secondary" className="text-xs">
+                {pendingChallenges.length}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              {pendingChallenges.slice(0, 5).map((item) => (
+                <Card
+                  key={item.lessonId}
+                  className="border-brand-secondary/20 bg-gradient-to-r from-brand-secondary/5 to-brand-card"
+                >
+                  <CardContent className="flex items-center justify-between gap-4 py-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-secondary/15 text-brand-secondary">
+                        <AlertCircle className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-brand-text truncate">
+                          {item.lessonTitle}
+                        </p>
+                        <p className="text-xs text-brand-text-muted">
+                          Sprint {item.sprintNumber}
+                        </p>
+                      </div>
+                    </div>
+                    <Button asChild size="sm" variant="outline" className="shrink-0">
+                      <Link
+                        href={`/sprints/${item.sprintId}/aulas/${item.lessonId}`}
+                      >
+                        Enviar desafio
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {sprints.map((sprint) => (
-              <SprintCard
-                key={sprint.id}
-                sprint={sprint}
-                progress={getSprintProgress(sprint.id)}
-              />
-            ))}
+        )}
+
+        {/* Sprint atual */}
+        {currentSprint && (
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <BookOpen className="h-5 w-5 text-brand-primary" />
+              <h2 className="text-lg font-bold text-brand-text">Sprint atual</h2>
+            </div>
+            <SprintCard
+              sprint={currentSprint}
+              progress={getSprintProgress(currentSprint.id)}
+            />
           </div>
-        </div>
+        )}
       </div>
     </AppLayout>
   );
