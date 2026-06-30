@@ -12,14 +12,18 @@ import {
 import { useAuthContext } from "@/contexts/AuthContext";
 import { sprints } from "@/data/mock";
 import {
+  findSprintIdForLesson,
   getLessonNavigation,
   getLessonProgressEntry,
   getNextIncompleteLesson,
   getOverallProgress,
-  getProgressKey,
   getSprintProgressFor,
   loadProgressMapFromStorage,
+  loadProgressMapFromSupabase,
+  LessonProgressEntry,
   saveProgressMapToStorage,
+  upsertLessonProgressRow,
+  upsertSprintProgressRow,
 } from "@/lib/progress";
 import { LessonProgressMap, Sprint, SprintProgress } from "@/types";
 
@@ -69,30 +73,68 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const prevUserIdRef = useRef<string | undefined>(undefined);
 
-  // Load on user change
+  // Carrega o progresso do Supabase ao mudar de usuário (fallback: cache local)
   useEffect(() => {
     if (prevUserIdRef.current === userId) return;
     prevUserIdRef.current = userId;
+
     setIsLoaded(false);
     setProgressMap({});
-    if (userId) {
-      setProgressMap(loadProgressMapFromStorage(userId));
+
+    if (!userId) {
+      setIsLoaded(true);
+      return;
     }
-    setIsLoaded(true);
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const map = await loadProgressMapFromSupabase(userId);
+        if (cancelled) return;
+        setProgressMap(map);
+        saveProgressMapToStorage(map, userId); // atualiza cache de fallback
+      } catch (err) {
+        console.error(
+          "Falha ao carregar progresso do Supabase — usando cache local:",
+          err
+        );
+        if (!cancelled) setProgressMap(loadProgressMapFromStorage(userId));
+      } finally {
+        if (!cancelled) setIsLoaded(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [userId]);
 
-  // Sync across tabs
-  useEffect(() => {
-    if (!userId) return;
-    const key = getProgressKey(userId);
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key === key) {
-        setProgressMap(loadProgressMapFromStorage(userId));
+  // ─── Persistência ─────────────────────────────────────────────────────────────
+
+  /** Salva uma aula no Supabase (lesson_progress + agregado sprint_progress) e no cache local. */
+  const persistLesson = useCallback(
+    async (
+      lessonId: string,
+      entry: LessonProgressEntry,
+      fullMap: LessonProgressMap
+    ) => {
+      if (!userId) return;
+
+      saveProgressMapToStorage(fullMap, userId); // fallback otimista
+
+      try {
+        await upsertLessonProgressRow(userId, lessonId, entry);
+        const sprintId = findSprintIdForLesson(lessonId);
+        if (sprintId) {
+          await upsertSprintProgressRow(userId, sprintId, fullMap);
+        }
+      } catch (err) {
+        console.error("Falha ao salvar progresso no Supabase:", err);
       }
-    };
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, [userId]);
+    },
+    [userId]
+  );
 
   // ─── Mutations ──────────────────────────────────────────────────────────────
 
@@ -100,44 +142,40 @@ export function ProgressProvider({ children }: { children: React.ReactNode }) {
     (lessonId: string) => {
       setProgressMap((prev) => {
         if (prev[lessonId]?.watched) return prev;
-        const updated: LessonProgressMap = {
-          ...prev,
-          [lessonId]: {
-            challengeCompleted: prev[lessonId]?.challengeCompleted ?? false,
-            ...(prev[lessonId]?.challengeAnswer
-              ? { challengeAnswer: prev[lessonId].challengeAnswer }
-              : {}),
-            watched: true,
-          },
+        const entry: LessonProgressEntry = {
+          watched: true,
+          challengeCompleted: prev[lessonId]?.challengeCompleted ?? false,
+          ...(prev[lessonId]?.challengeAnswer
+            ? { challengeAnswer: prev[lessonId].challengeAnswer }
+            : {}),
         };
-        saveProgressMapToStorage(updated, userId);
+        const updated: LessonProgressMap = { ...prev, [lessonId]: entry };
+        void persistLesson(lessonId, entry, updated);
         return updated;
       });
     },
-    [userId]
+    [persistLesson]
   );
 
   const markChallengeCompleted = useCallback(
     (lessonId: string, answer?: string) => {
       setProgressMap((prev) => {
         if (prev[lessonId]?.challengeCompleted) return prev;
-        const updated: LessonProgressMap = {
-          ...prev,
-          [lessonId]: {
-            watched: prev[lessonId]?.watched ?? false,
-            challengeCompleted: true,
-            ...(answer
-              ? { challengeAnswer: answer }
-              : prev[lessonId]?.challengeAnswer
-                ? { challengeAnswer: prev[lessonId].challengeAnswer }
-                : {}),
-          },
+        const entry: LessonProgressEntry = {
+          watched: prev[lessonId]?.watched ?? false,
+          challengeCompleted: true,
+          ...(answer
+            ? { challengeAnswer: answer }
+            : prev[lessonId]?.challengeAnswer
+              ? { challengeAnswer: prev[lessonId].challengeAnswer }
+              : {}),
         };
-        saveProgressMapToStorage(updated, userId);
+        const updated: LessonProgressMap = { ...prev, [lessonId]: entry };
+        void persistLesson(lessonId, entry, updated);
         return updated;
       });
     },
-    [userId]
+    [persistLesson]
   );
 
   // ─── Queries ────────────────────────────────────────────────────────────────

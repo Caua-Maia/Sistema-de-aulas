@@ -1,12 +1,14 @@
 /**
- * Utilitários de progresso — pure functions, sem estado React.
- * Para migrar para Supabase: substituir load/save storage functions por chamadas à API.
+ * Utilitários de progresso.
  *
- * Formato de storage v2: Record<lessonId, { watched, challengeCompleted, challengeAnswer? }>
- * Migração automática do formato v1 (string[]) na primeira carga.
+ * Persistência principal: Supabase (tabelas lesson_progress e sprint_progress).
+ * Fallback opcional: localStorage (cache offline e tolerância a falhas de rede).
+ *
+ * Formato do mapa em memória: Record<lessonId, { watched, challengeCompleted, challengeAnswer? }>
  */
 
 import { sprints, getTotalLessonsCount } from "@/data/mock";
+import { supabase } from "@/lib/supabase";
 import { Lesson, LessonProgressMap, Sprint, SprintProgress, SprintStatus } from "@/types";
 
 export const XP_PER_WATCH = 25;
@@ -32,7 +34,7 @@ function getValidLessonIds(): Set<string> {
   return new Set(sprints.flatMap((s) => s.lessons.map((l) => l.id)));
 }
 
-// ─── Storage helpers ──────────────────────────────────────────────────────────
+// ─── localStorage helpers (fallback opcional) ─────────────────────────────────
 
 export function loadProgressMapFromStorage(userId?: string): LessonProgressMap {
   if (typeof window === "undefined") return {};
@@ -86,7 +88,138 @@ export function saveProgressMapToStorage(
   map: LessonProgressMap,
   userId?: string
 ): void {
-  localStorage.setItem(getProgressKey(userId), JSON.stringify(map));
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(getProgressKey(userId), JSON.stringify(map));
+  } catch {
+    // storage cheio / indisponível — ignora (é apenas cache)
+  }
+}
+
+// ─── Supabase: leitura ────────────────────────────────────────────────────────
+
+interface LessonProgressRow {
+  lesson_id: string;
+  watched: boolean | null;
+  challenge_completed: boolean | null;
+  challenge_answer: string | null;
+}
+
+/**
+ * Carrega o progresso do usuário autenticado da tabela lesson_progress.
+ * Toda leitura é filtrada por user_id (RLS também garante isolamento no banco).
+ */
+export async function loadProgressMapFromSupabase(
+  userId: string
+): Promise<LessonProgressMap> {
+  const valid = getValidLessonIds();
+
+  const { data, error } = await supabase
+    .from("lesson_progress")
+    .select("lesson_id, watched, challenge_completed, challenge_answer")
+    .eq("user_id", userId);
+
+  if (error) throw error;
+  if (!data) return {};
+
+  const result: LessonProgressMap = {};
+  for (const row of data as LessonProgressRow[]) {
+    if (!valid.has(row.lesson_id)) continue;
+    result[row.lesson_id] = {
+      watched: Boolean(row.watched),
+      challengeCompleted: Boolean(row.challenge_completed),
+      ...(row.challenge_answer ? { challengeAnswer: row.challenge_answer } : {}),
+    };
+  }
+  return result;
+}
+
+// ─── Supabase: escrita (upsert) ───────────────────────────────────────────────
+
+export interface LessonProgressEntry {
+  watched: boolean;
+  challengeCompleted: boolean;
+  challengeAnswer?: string;
+}
+
+/**
+ * Faz upsert de uma aula na tabela lesson_progress.
+ * O campo `completed` é recalculado aqui e também garantido por trigger no banco
+ * (completed = watched AND challenge_completed).
+ */
+export async function upsertLessonProgressRow(
+  userId: string,
+  lessonId: string,
+  entry: LessonProgressEntry
+): Promise<void> {
+  const completed = entry.watched && entry.challengeCompleted;
+
+  const { error } = await supabase.from("lesson_progress").upsert(
+    {
+      user_id: userId,
+      lesson_id: lessonId,
+      watched: entry.watched,
+      challenge_completed: entry.challengeCompleted,
+      completed,
+      challenge_answer: entry.challengeAnswer ?? null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,lesson_id" }
+  );
+
+  if (error) throw error;
+}
+
+/** XP acumulado dentro de um sprint específico (25 por assistida + 25 por desafio). */
+export function calculateSprintXp(
+  sprintId: string,
+  map: LessonProgressMap
+): number {
+  const sprint = sprints.find((s) => s.id === sprintId);
+  if (!sprint) return 0;
+  let xp = 0;
+  for (const lesson of sprint.lessons) {
+    const entry = map[lesson.id];
+    if (!entry) continue;
+    if (entry.watched) xp += XP_PER_WATCH;
+    if (entry.challengeCompleted) xp += XP_PER_CHALLENGE;
+  }
+  return xp;
+}
+
+/**
+ * Faz upsert do agregado do sprint na tabela sprint_progress
+ * (xp, completed_lessons, total_lessons) a partir do mapa atual.
+ */
+export async function upsertSprintProgressRow(
+  userId: string,
+  sprintId: string,
+  map: LessonProgressMap
+): Promise<void> {
+  const progress = getSprintProgressFor(sprintId, map);
+  const xp = calculateSprintXp(sprintId, map);
+
+  const { error } = await supabase.from("sprint_progress").upsert(
+    {
+      user_id: userId,
+      sprint_id: sprintId,
+      xp,
+      completed_lessons: progress.completedLessons,
+      total_lessons: progress.totalLessons,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,sprint_id" }
+  );
+
+  if (error) throw error;
+}
+
+/** Descobre a qual sprint uma aula pertence (para atualizar o agregado correto). */
+export function findSprintIdForLesson(lessonId: string): string | undefined {
+  for (const sprint of sprints) {
+    if (sprint.lessons.some((l) => l.id === lessonId)) return sprint.id;
+  }
+  return undefined;
 }
 
 // ─── Derived lesson states ────────────────────────────────────────────────────
