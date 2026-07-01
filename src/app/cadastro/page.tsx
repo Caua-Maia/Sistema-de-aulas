@@ -44,7 +44,7 @@ function validate(
 // ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function CadastroPage() {
-  const { register, isLoading, isAuthenticated } = useAuth();
+  const { register, isLoading, isAuthenticated, isMonitor } = useAuth();
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -56,9 +56,9 @@ export default function CadastroPage() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.replace("/dashboard");
+      router.replace(isMonitor ? "/monitor" : "/dashboard");
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, isMonitor, router]);
 
   if (isLoading || isAuthenticated) {
     return (

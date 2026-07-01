@@ -6,6 +6,7 @@
  */
 
 import { supabase } from "@/lib/supabase";
+import { isMonitorEmail } from "@/lib/monitor";
 import { User } from "@/types/user";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -39,6 +40,20 @@ function mapAuthError(message: string): string {
   }
 
   return "Ocorreu um erro inesperado. Tente novamente.";
+}
+
+// ─── Monitor ─────────────────────────────────────────────────────────────────
+
+/** Verifica monitor pelo perfil ou pelo e-mail da sessão Supabase Auth (fonte das RLS). */
+export async function checkIsMonitor(
+  profileEmail?: string | null
+): Promise<boolean> {
+  if (isMonitorEmail(profileEmail)) return true;
+
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+  return isMonitorEmail(authUser?.email);
 }
 
 // ─── Busca de perfil ──────────────────────────────────────────────────────────

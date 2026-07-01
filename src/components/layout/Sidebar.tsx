@@ -10,6 +10,7 @@ import {
   LogOut,
   Sparkles,
   TrendingUp,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,7 +25,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, isMonitor } = useAuth();
   const { xp, level } = useProgress();
 
   return (
@@ -96,6 +97,30 @@ export function Sidebar() {
             </Link>
           );
         })}
+
+        {isMonitor && (
+          <div className="pt-3 mt-2 border-t border-white/8">
+            <Link
+              href="/monitor"
+              className={cn(
+                "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 border-l-2 border-transparent",
+                pathname.startsWith("/monitor")
+                  ? "nav-item-active"
+                  : "text-white/60 hover:bg-white/5 hover:text-white hover:border-white/10"
+              )}
+            >
+              <Users
+                className={cn(
+                  "h-5 w-5 transition-transform duration-200 group-hover:scale-110",
+                  pathname.startsWith("/monitor")
+                    ? "text-brand-secondary"
+                    : "text-white/50"
+                )}
+              />
+              Painel Monitor
+            </Link>
+          </div>
+        )}
       </nav>
 
       {/* Footer */}

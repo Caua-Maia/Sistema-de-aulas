@@ -19,7 +19,7 @@ import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function LoginPage() {
-  const { login, isLoading, isAuthenticated } = useAuth();
+  const { login, isLoading, isAuthenticated, isMonitor } = useAuth();
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -29,9 +29,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      router.replace("/dashboard");
+      router.replace(isMonitor ? "/monitor" : "/dashboard");
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, isMonitor, router]);
 
   if (isLoading || isAuthenticated) {
     return (
